@@ -54,3 +54,8 @@ if [ -n "$RYZENADJ_BIN" ]; then
         --tctl-temp=90 \
         --max-performance >/dev/null 2>&1 || true
 fi
+
+# 6. NVMe Readahead optimization to RAM (1024 KB)
+for q in /sys/block/nvme*/queue/read_ahead_kb; do
+    [ -f "$q" ] && echo 1024 > "$q" 2>/dev/null || true
+done

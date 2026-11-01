@@ -1,21 +1,28 @@
 #!/usr/bin/env bash
-# Inject zero-disk RAM caching and VA-API hardware acceleration into Firefox profiles
+# Inject zero-disk RAM caching, multi-tab persistence, and VA-API hardware acceleration into Firefox profiles
 set -euo pipefail
 
 echo "[+] Scanning for Firefox profiles..."
 
 FIREFOX_CONFIG="
-// Optimized for High RAM & Zero Disk Thrashing
+// High RAM Multi-Tab & Zero Disk Thrashing Configuration (20GB RAM Edition)
+// 1. Zero Disk Cache & Massive RAM Cache
 user_pref(\"browser.cache.disk.enable\", false);
 user_pref(\"browser.cache.disk.smart_size.enabled\", false);
 user_pref(\"browser.cache.memory.enable\", true);
-user_pref(\"browser.cache.memory.capacity\", 1048576); // 1GB memory cache in RAM
-user_pref(\"browser.cache.memory.max_entry_size\", 51200); // 50MB per object
-user_pref(\"media.memory_cache_max_size\", 524288); // 512MB media stream buffer
-user_pref(\"browser.tabs.unloadOnLowMemory\", true);
-user_pref(\"browser.sessionhistory.max_entries\", 10);
+user_pref(\"browser.cache.memory.capacity\", 2097152); // 2GB memory cache in RAM per profile
+user_pref(\"browser.cache.memory.max_entry_size\", 102400); // 100MB per object
+user_pref(\"media.memory_cache_max_size\", 1048576); // 1GB media stream buffer
 
-// Hardware Video Acceleration (VA-API / WebRender)
+// 2. Disable Tab Sleeping (Keep 20-30 tabs alive in RAM for 0ms tab switching)
+user_pref(\"browser.tabs.unloadOnLowMemory\", false);
+user_pref(\"browser.sessionhistory.max_entries\", 20);
+user_pref(\"browser.sessionhistory.max_total_viewers\", 20); // bfcache: keep 20 pages pre-rendered in RAM
+
+// 3. Multi-Process Concurrency
+user_pref(\"dom.ipc.processCount\", 16);
+
+// 4. Hardware Video Acceleration (AMD Radeon Vega 3 VCN Engine)
 user_pref(\"media.ffmpeg.vaapi.enabled\", true);
 user_pref(\"media.hardware-video-decoding.force-enabled\", true);
 user_pref(\"gfx.webrender.all\", true);
