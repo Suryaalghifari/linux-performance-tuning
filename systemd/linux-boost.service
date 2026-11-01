@@ -1,0 +1,12 @@
+[Unit]
+Description=Lock CPU Clocks, P-States, and Maximum Power Limits
+After=multi-user.target suspend.target hibernate.target hybrid-sleep.target
+Wants=multi-user.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/linux-hardware-tune.sh
+RemainAfterExit=no
+
+[Install]
+WantedBy=multi-user.target suspend.target hibernate.target hybrid-sleep.target

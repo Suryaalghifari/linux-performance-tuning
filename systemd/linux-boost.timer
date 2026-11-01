@@ -1,0 +1,11 @@
+[Unit]
+Description=Periodic re-apply CPU P-States and Power limits to counter EC resets
+After=multi-user.target
+
+[Timer]
+OnBootSec=10s
+OnUnitActiveSec=30s
+Unit=linux-boost.service
+
+[Install]
+WantedBy=timers.target
