@@ -20,6 +20,7 @@ echo "[+] Removing configuration files..."
 rm -f /usr/local/bin/linux-hardware-tune.sh
 rm -f /etc/sysctl.d/99-performance.conf
 rm -f /etc/systemd/journald.conf.d/00-limit-size.conf
+rm -f /etc/modprobe.d/audio-powersave.conf
 
 # 3. Teardown ZRAM
 echo "[+] Tearing down ZRAM block device..."

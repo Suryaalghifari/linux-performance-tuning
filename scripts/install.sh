@@ -76,12 +76,16 @@ cp "$REPO_ROOT/systemd/linux-boost.timer" /etc/systemd/system/linux-boost.timer
 systemctl daemon-reload
 systemctl enable --now linux-boost.timer linux-boost.service
 
-# 7. Setup user-space app acceleration if invoked via sudo
+# 7. Setup user-space app acceleration & audio tuning
+echo "[+] Configuring audio noise mitigation & power-saving overrides..."
+bash "$SCRIPT_DIR/tune-audio.sh" || true
+
 TARGET_USER="${SUDO_USER:-}"
 if [ -n "$TARGET_USER" ] && [ "$TARGET_USER" != "root" ]; then
     echo "[+] Configuring user-space optimizations for user: $TARGET_USER..."
     sudo -u "$TARGET_USER" bash "$SCRIPT_DIR/setup-vscode-gpu.sh" || true
     sudo -u "$TARGET_USER" bash "$SCRIPT_DIR/setup-firefox-ram.sh" || true
+    sudo -u "$TARGET_USER" bash "$SCRIPT_DIR/tune-audio.sh" || true
 fi
 
 echo ""

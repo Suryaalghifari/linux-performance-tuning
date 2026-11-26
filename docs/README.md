@@ -20,3 +20,5 @@ This directory contains in-depth technical explanations of the hardware register
    - Google TCP BBR congestion control, inotify file watcher limits for large git repos, and systemd journal disk write caps.
 7. **[07. Telemetry & Monitoring Guide](./07-telemetry-and-monitoring.md)**
    - Why `/proc/cpuinfo` misleads due to C-state sleep averaging, measuring real crystal clocks via `turbostat`, and setting up GNOME Shell top bar telemetry.
+8. **[08. Audio, Peripherals & Noise Mitigation](./08-audio-and-peripherals.md)**
+   - Resolving analog 3.5mm microphone noise, EMI ground loops from high CPU performance states, Realtek ALC236 jack-sense +60dB overboost, and `snd_hda_intel` power-saving pops.
