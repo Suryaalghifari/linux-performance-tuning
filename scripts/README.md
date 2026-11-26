@@ -14,4 +14,5 @@ This directory contains standalone, modular bash scripts that execute each optim
 | **`intel-tune-hardware.sh`** | Intel RAPL power cap adjuster and governor configuration helper. | Invoked by systemd timer or root CLI |
 | **`setup-zram.sh`** | Sets up `/dev/zram0` (8GB zstd) with priority 100 and demotes SSD swap to fallback priority 5. | Root CLI |
 | **`setup-vscode-gpu.sh`** | Generates the VS Code desktop launcher override with GPU flags and installs the Fish shell function. | User CLI |
-| **`setup-firefox-ram.sh`** | Injects zero-disk RAM caching and VA-API hardware decoding into all discovered Firefox user profiles. | User CLI |
+| **`setup-firefox-ram.sh`** | Menulis blok prefs Firefox managed (cache moderat, content process 8, VA-API tanpa force, dmabuf mati) ke semua profile. Idempoten: blok lama diganti, prefs custom di luar blok aman. | User CLI |
+| **`tune-audio.sh`** | Clamps mic boost & capture volume and disables `snd_hda_intel` power save to remove headset noise. | User or Root CLI |

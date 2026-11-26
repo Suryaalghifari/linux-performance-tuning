@@ -21,9 +21,9 @@ flowchart TD
     B3 --> C{CPU Vendor Detection}
     
     C -->|AMD Zen / APU| D1[AMD Tuning Engine]
-    D1 --> D2[Hack MSR P-State via amdctl\nP0=3.3GHz, P1=3.0GHz]
-    D2 --> D3[Bypass SMU TDP via ryzenadj\nSTAPM 20W, FAST 24W, Temp 90C]
-    D3 --> D4[Lock scaling_min_freq & Performance Governor]
+    D1 --> D2[P-State dari firmware\nTidak override MSR: CPU hanya punya 3 P-state]
+    D2 --> D3[ryzenadj: STAPM 15W, FAST 20W, Ceiling 85C]
+    D3 --> D4[schedutil + min P-state terendah (1.4 GHz)]
     
     C -->|Intel Core| E1[Intel Tuning Engine]
     E1 --> E2[intel-undervolt / MSR Offset]
@@ -35,17 +35,18 @@ flowchart TD
     
     F --> F1[ZRAM 8GB zstd Priority 100]
     F1 --> F2[Demote SSD Swap to Priority 5 Fallback]
-    F2 --> F3[Tweak Sysctl: swappiness=60, dirty_ratio=15]
+    F2 --> F3[Tweak Sysctl: swappiness=60, dirty_ratio=10]
     
     F3 --> G[Phase 4: App & I/O Acceleration]
     G --> G1[VS Code: Force GPU Rasterization & /dev/shm Cache]
-    G1 --> G2[Firefox: Zero Disk Cache & VA-API Hardware Decode]
+    G1 --> G2[Firefox: cache 512MB + disk 256MB + VA-API tanpa force]
     G2 --> G3[Kernel: inotify 524k & Google TCP BBR Network]
-    G3 --> G4[Journald: Cap log disk usage to 100MB]
+    G3 --> G4[Journald: cap log 512MB]
+    G4 --> G5[Audio: Clamp ALC236 +60dB overboost & disable power save]
     
-    G4 --> H[Phase 5: Systemd Persistence Engine]
+    G5 --> H[Phase 5: Systemd Persistence Engine]
     H --> H1[linux-boost.service on Boot / Resume]
-    H1 --> H2[linux-boost.timer every 30s to defeat OEM EC Reset]
+    H1 --> H2[linux-boost.timer hourly (EC reset guard)]
     H2 --> I[End: Max Sustained Hardware Speed]
 ```
 
@@ -55,11 +56,11 @@ flowchart TD
 
 | Optimization Vector | AMD APU (Zen / Zen+ / Picasso) | Intel Core (8th - 13th Gen) |
 | :--- | :--- | :--- |
-| **P-State Overclock** | Direct MSR overwrite (`0xC0010064` via `amdctl`). Modifies base FID/DID. | Multiplier locked on non-K; use BCLK or Turbo Ratio limits if unlocked. |
+| **P-State Overclock** | Direct MSR overwrite (`0xC0010064` via `amdctl`). Modifies base FID/DID. **Dimatikan secara default**: banyak APU mobile hanya mengekspos 3 P-state, jadi MSR override bikin clock report tidak sinkron dan suhu naik tanpa clock nyata. | Multiplier locked on non-K; use BCLK or Turbo Ratio limits if unlocked. |
 | **Power Limit (TDP)** | SMU Mailbox bypass via `ryzenadj` (STAPM, PPT FAST, PPT SLOW). | MSR `0x610` (MSR_PKG_POWER_LIMIT) via RAPL or `intel-undervolt`. |
 | **Undervolting** | Register VID manipulation in P-State tables. | Direct voltage offset via MSR `0x150` (Core, Cache, Uncore, iGPU). |
 | **Memory Topology** | Critical: Flex Dual Channel required for Radeon Vega iGPU bandwidth. | Dual Channel recommended for Intel UHD/Iris Xe graphics. |
-| **EC Reset Defense** | Systemd timer required (30s interval) to counter HP/Lenovo power resets. | Systemd timer required to counter Intel DPTF / OEM thermal manager resets. |
+| **EC Reset Defense** | Systemd timer (boot/resume + hourly) to counter HP/Lenovo power resets. Jangan pakai interval 30 detik: menulis MSR/sysfs terus-menerus menambah panas tanpa manfaat. | Systemd timer required to counter Intel DPTF / OEM thermal manager resets. |
 | **Kernel Prerequisites** | Secure Boot OFF + `allow_writes=on` on `/sys/module/msr`. | Secure Boot OFF + `msr` module enabled. |
 
 ---

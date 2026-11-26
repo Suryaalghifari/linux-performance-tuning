@@ -59,10 +59,11 @@ With 16GB+ RAM and ZRAM in place, default Linux virtual memory parameters must b
 vm.swappiness = 60
 
 # Prevent kernel from prematurely discarding inode/dentry file caches
-vm.vfs_cache_pressure = 50
+vm.vfs_cache_pressure = 10
 
 # Flush dirty pages to disk in small, frequent background writes
 # to prevent desktop micro-stutters during heavy disk operations.
-vm.dirty_ratio = 15
+# 10% x 17.5 GiB = ~1.7 GB dirty page maksimum (20% terlalu besar untuk laptop ini).
+vm.dirty_ratio = 10
 vm.dirty_background_ratio = 5
 ```

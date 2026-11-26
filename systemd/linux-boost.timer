@@ -1,10 +1,12 @@
 [Unit]
-Description=Periodic re-apply CPU P-States and Power limits to counter EC resets
+Description=Re-apply CPU P-States and Power limits after boot/resume (bukan tiap 30 detik)
 After=multi-user.target
 
 [Timer]
 OnBootSec=10s
-OnUnitActiveSec=30s
+# Re-apply maksimal sekali sejam. Loop 30 detik menulis MSR/sysfs terus-menerus,
+# membuat swap churn (bug lama) dan menaikkan suhu idle tanpa manfaat terukur.
+OnUnitActiveSec=1h
 Unit=linux-boost.service
 
 [Install]

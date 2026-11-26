@@ -43,34 +43,39 @@ end
 
 ---
 
-## 2. Firefox: RAM Cache & VA-API Video Acceleration
+## 2. Firefox: Cache, Multi-Tab, & VA-API Video Acceleration
 
-When opening 10+ tabs across multiple profiles, Firefox writes hundreds of megabytes of temporary cache to SSD storage, causing disk contention.
+Firefox default menulis cache ke SSD dan menahan memori lebih agresif. Konfigurasi di bawah
+adalah hasil kalibrasi ulang untuk 16–18 GiB RAM / 4 thread setelah insiden screencast crash
+(lihat `docs/09-incident-firefox-meet-crash.md`).
 
-### Zero-Disk RAM Cache (`user.js`):
-Inject into all Firefox profile directories (`~/.mozilla/firefox/*.default*` or `~/snap/firefox/common/.mozilla/firefox/*`):
+Aturan penting: **jangan** memaksa jalur DMA-BUF Wayland atau `hardware-video-decoding.force-enabled`.
+Di Wayland + Mesa + Vega 3 kombinasi itu bikin Firefox SIGSEGV di jalur screencast PipeWire
+saat "Stop sharing" di Google Meet.
+
+### Prefs yang dipakai (`scripts/setup-firefox-ram.sh` menulis blok managed ke `user.js`)
 ```javascript
-// user.js
+// Cache: disk cache kecil + RAM cache moderat (bukan 2 GB)
+user_pref("browser.cache.disk.enable", true);
+user_pref("browser.cache.disk.capacity", 262144);   // 256 MB
+user_pref("browser.cache.memory.capacity", 524288); // 512 MB
+user_pref("browser.cache.memory.max_entry_size", 51200);
+user_pref("media.memory_cache_max_size", 262144);   // 256 MB
 
-// 1. Disable disk cache entirely
-user_pref("browser.cache.disk.enable", false);
-user_pref("browser.cache.disk.smart_size.enabled", false);
-
-// 2. Allocate 1GB in-memory cache per profile
-user_pref("browser.cache.memory.enable", true);
-user_pref("browser.cache.memory.capacity", 1048576); // 1,048,576 KB = 1 GB
-user_pref("browser.cache.memory.max_entry_size", 51200); // 50 MB
-user_pref("media.memory_cache_max_size", 524288); // 512 MB media buffer
-
-// 3. Enable hardware video decode via VA-API (Vega VCN engine)
-user_pref("media.ffmpeg.vaapi.enabled", true);
-user_pref("media.hardware-video-decoding.force-enabled", true);
-user_pref("gfx.webrender.all", true);
-user_pref("widget.dmabuf.wayland.enabled", true);
-
-// 4. Discard idle background tabs to conserve memory
+// Tab & proses
 user_pref("browser.tabs.unloadOnLowMemory", true);
+user_pref("browser.sessionhistory.max_entries", 20);
+user_pref("dom.ipc.processCount", 8);               // 4 thread: jangan 16
+
+// Video: VA-API aktif, tapi jangan dipaksa
+user_pref("media.ffmpeg.vaapi.enabled", true);
+user_pref("media.hardware-video-decoding.force-enabled", false);
+user_pref("gfx.webrender.all", true);
+user_pref("widget.dmabuf.wayland.enabled", false);
 ```
+
+`scripts/setup-firefox-ram.sh` bersifat idempoten: blok lama dibuang dan diganti blok baru,
+prefs custom user di luar blok managed tidak disentuh. Restart Firefox setelah menjalankannya.
 
 ### Verification:
 Navigate to `about:support` in Firefox:
