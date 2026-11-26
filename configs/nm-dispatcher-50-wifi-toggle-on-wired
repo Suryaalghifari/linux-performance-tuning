@@ -1,0 +1,33 @@
+#!/bin/sh
+# /etc/NetworkManager/dispatcher.d/50-wifi-toggle-on-wired
+# Otomatis: saat kabel LAN (eno1) connect -> WiFi dimatikan.
+#           saat kabel LAN lepas -> WiFi dinyalakan lagi.
+# Hanya untuk interface kabel eno1; interface lain diabaikan.
+#
+# Install:
+#   sudo install -m 755 configs/nm-dispatcher-50-wifi-toggle-on-wired \
+#        /etc/NetworkManager/dispatcher.d/50-wifi-toggle-on-wired
+# Cek log: journalctl -u NetworkManager -f | grep wifi-toggle
+#
+# Catatan: kalau tidak ingin radio WiFi dimatikan total, ubah perintah di bawah
+# menjadi "nmcli device disconnect wlp3s0" / "nmcli device connect wlp3s0".
+
+IFACE="$1"
+ACTION="$2"
+WIRED="eno1"
+WIFI="wlp3s0"
+
+[ "$IFACE" = "$WIRED" ] || exit 0
+
+case "$ACTION" in
+    up)
+        logger -t wifi-toggle "wired $WIRED up -> wifi off"
+        nmcli radio wifi off
+        ;;
+    down)
+        logger -t wifi-toggle "wired $WIRED down -> wifi on"
+        nmcli radio wifi on
+        ;;
+esac
+
+exit 0
