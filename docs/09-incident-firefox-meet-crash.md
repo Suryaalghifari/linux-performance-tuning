@@ -461,3 +461,97 @@ ingin 1 Gbps cek kabelnya. 100 Mbps tetap cukup untuk Meet 1080p.
   besar jalur yang sama, dengan memory pressure sebagai pemicu tambahan.
 - Apakah ada crash lain dalam 1 minggu terakhir yang tidak terekam: journald 100 MB sudah memotong log,
   dan crash report lama sudah tidak di `pending/` (kemungkinan sudah terkirim/terhapus).
+
+## 13. Update 2026-11-27 — P0/P1 sudah jalan, crash masih terjadi
+
+Status: **P0 + P1 diterapkan, crash tidak berhenti. Rekomendasi bergeser ke workaround jalur capture.**
+
+Yang sudah diterapkan:
+
+| Item | Status | Bukti |
+|---|---|---|
+| `ryzen-boost.timer` 30 detik | disabled | `systemctl is-enabled ryzen-boost.timer` → disabled |
+| Logika swap di `~/.local/bin/ryzen-permanent-boost.sh` | diperbaiki (cek `awk`, idempoten) | tidak ada lagi `Adding 8388604k swap` di log boot 27 Nov |
+| `user.js` prefs (P1) | terpasang 2026-11-26 22:46 | dmabuf=false, hw-decode force=false, processCount=8, cache 512 MB, unloadOnLowMemory=true |
+| `journald SystemMaxUse` | 512M | boot 27 Nov masih menyimpan seluruh log |
+
+Crash ke-4:
+
+```
+dump   : 67e134bb-ddc9-0a8b-f1bb-7a7530e47b79
+waktu  : 2026-11-27 09:35:14 WIB
+url    : meet.google.com/qmu-cbsz-fqb
+proses : main, uptime 35419 s
+exception: code 0xb (SIGSEGV), addr 0x18
+frame  : libxul.so +0x74cff46   <-- identik dengan 3 crash sebelumnya
+mem    : AvailablePhysicalMemory 1.2 GB
+```
+
+Empat dump sekarang bisa dibaca sekaligus: `scripts/firefox-crash-report.sh`
+(2026-11-02, 11-24, 11-25, 11-27 — frame, code, dan fault address sama persis).
+
+Kesimpulan yang berubah:
+
+1. P1 **bukan** fix. `widget.dmabuf.wayland.enabled=false` sudah aktif saat crash 27 Nov. Crash tetap
+   di frame yang sama, jadi bug-nya bukan di jalur DMA-BUF saja, melainkan di teardown screencast
+   PipeWire saat capture dihentikan. Pref itu hanya menurunkan tekanan memori, bukan menutup jalur crash.
+2. Karena di Wayland capture wajib lewat portal + PipeWire, tidak ada pref Firefox yang bisa
+   mematikan jalur itu. Satu-satunya cara memutus jalur = jalankan Firefox sebagai klien X11 (XWayland),
+   di mana screenshot diambil lewat X11, bukan PipeWire.
+3. `AvailablePageFile=0` pada crash 27 Nov **tidak** berarti swap mati: `sar -S` menunjukkan swap 0
+   dipakai sepanjang hari. Field itu tidak bisa dipakai sebagai bukti di mesin ini (zram).
+
+### Workaround yang sekarang tersedia
+
+- **XWayland untuk Firefox snap TIDAK bisa dipakai.** Sudah diuji 2026-11-27, dua jalur gagal:
+
+  ```
+  MOZ_ENABLE_WAYLAND=0 /snap/bin/firefox   -> Error: cannot open display: :0
+  GDK_BACKEND=x11      /snap/bin/firefox   -> proses mati tanpa window
+       audit: apparmor="DENIED" ... subj=snap.firefox.firefox syscall=251 (ioprio_set)
+              code=0x50000 (SECCOMP_RET_KILL_THREAD)
+  ```
+
+  Snap firefox tidak bisa membuka display X11 (cookie `mutter-Xwaylandauth` tidak di-merge
+  ke `$XDG_RUNTIME_DIR/snap.firefox/.Xauthority`), dan begitu GDK dipaksa X11, seccomp snap
+  mematikan proses karena `ioprio_set`. Socket `/tmp/.X11-unix/X0` sendiri kelihatan di dalam snap,
+  jadi masalahnya auth + seccomp, bukan socket.
+- Alternatif tanpa perubahan sistem: Meet di Chrome 158 (tidak ada crash screencast tercatat).
+- Kalau tetap ingin Firefox + X11: pakai Firefox non-snap (deb Mozilla APT atau tarball resmi),
+  karena yang memblokir adalah confinemen snap, bukan Firefox-nya.
+
+### Catatan TDP 15W
+
+`ryzenadj` **tidak** berjalan di boot ini: `no compatible ryzen_smu kernel module`, fallback `/dev/mem`
+diblok `CONFIG_STRICT_DEVMEM=y`, lalu `Unable to init ryzenadj`. Artinya cap 15 W di
+`ryzen-permanent-boost.sh` hanya niat, bukan kondisi nyata — CPU bebas 2.4 GHz + boost, dan itu yang
+membuat Tctl/edge 85-87 °C saat Meet. Perbaikan butuh modul `ryzen_smu` (dkms + reboot).
+
+### Verifikasi berikutnya
+
+```bash
+scripts/firefox-crash-report.sh          # jumlah dump tidak boleh bertambah
+ls ~/snap/firefox/common/.mozilla/firefox/Crash\ Reports/pending/
+```
+
+Uji: satu meeting Meet (share Entire screen, lalu stop share), lalu cek dua perintah di atas.
+
+### Koreksi setelah uji launcher (penting)
+
+Launcher `Firefox (X11)` sudah dihapus. Firefox snap **tidak bisa** jadi klien X11:
+
+```
+MOZ_ENABLE_WAYLAND=0 /snap/bin/firefox  -> Error: cannot open display: :0
+GDK_BACKEND=x11      /snap/bin/firefox  -> proses mati, journal:
+     apparmor="DENIED" subj=snap.firefox.firefox syscall=251 (ioprio_set)
+     code=0x50000 = SECCOMP_RET_KILL_THREAD
+```
+
+Socket `/tmp/.X11-unix/X0` terlihat di dalam snap, tapi cookie tidak di-merge
+(`/run/user/1000/snap.firefox/` hanya berisi `dconf/` dan symlink `wayland-0`). Jadi X11
+tertutup dari sisi packaging.
+
+Kondisi terakhir: snap firefox di-refresh dari 159.0-1 (rev 9137) ke **161.0-1** (rev 9269,
+2026-11-27 10:06 WIB). Baseline 4 dump tidak bertambah. Tes Meet di 161 belum dilakukan.
+
+
